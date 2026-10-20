@@ -1,0 +1,46 @@
+// MID brand variables - the SCSS twin of midTokens.ts.
+//
+// This is the single source of truth for the app's colours. quasar.variables.scss
+// feeds these straight into Quasar's own palette ($primary and friends), which is
+// what drives every built-in accent: text-field focus rings, select highlights,
+// the date/time pickers, checkboxes, radios, toggles, spinners, tabs...
+// Change a colour here and it changes everywhere.
+//
+// Keep in step with midTokens.ts (TS side, used by components/inline styles).
+
+$mid-primary: #087f49;
+$mid-primary-dark: #06492d;
+$mid-primary-deep: #006f42;
+$mid-primary-soft: #dbf4df;
+$mid-primary-surface: #f3faf3;
+
+$mid-secondary: #8dc63f;
+$mid-secondary-soft: #e4f4df;
+
+// Funeral / bereavement accent. The death-notification flow is deliberately not
+// brand-green - purple marks it as a different, solemn kind of action. Use it
+// through the .mid-accent-purple scope class (mid-theme.scss), never by
+// hard-coding these hexes in a page.
+$mid-purple: #512da8;
+$mid-purple-deep: #3c0f70;
+$mid-purple-bright: #6a2fc9;
+$mid-purple-soft: #ede7f6;
+
+$mid-positive: #11a650;
+$mid-info: #168edb;
+$mid-danger: #dc2626;
+$mid-warning: #f59e0b;
+
+$mid-text: #17452e;
+$mid-text-strong: #06492d;
+$mid-text-muted: #6d8a7c;
+$mid-border: #d6e8db;
+$mid-surface: #ffffff;
+$mid-app-background: #f7faf8;
+
+// Field chrome shared by every input/select/date/time control.
+$mid-field-radius: 12px;
+$mid-field-bg: #fbfdfb;
+$mid-field-bg-focus: #ffffff;
+$mid-field-border: #dbe6dd;
+$mid-field-border-hover: #a9cdb4;

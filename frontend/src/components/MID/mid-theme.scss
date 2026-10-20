@@ -1,0 +1,297 @@
+// MID global theme - loaded once from src/css/app.scss, applies app-wide.
+//
+// quasar.variables.scss already points Quasar's $primary at the MID green, which
+// covers most built-in accents. This file handles the leftovers that Sass
+// variables cannot reach: hard-coded blues inside Quasar's compiled CSS, the
+// browser-native date/time widgets, and the shared field chrome (rounded, soft
+// green-tinted) that pages used to re-declare one by one.
+//
+// Nothing here is scoped - add a rule here instead of repeating it in a page.
+
+@use './mid.variables' as mid;
+
+// Accent colour as CSS custom properties. Scoped component styles (which carry
+// a [data-v-*] attribute and therefore out-specify plain global rules) read
+// these instead of hard-coding a hex, so an accent wrapper - or a portaled
+// picker carrying the accent class - just works. Custom properties inherit
+// through the DOM, which plain CSS specificity fights do not.
+:root {
+  --mid-accent: #{mid.$mid-primary};
+  --mid-accent-deep: #{mid.$mid-primary-deep};
+  --mid-accent-soft: #{mid.$mid-primary-soft};
+  --mid-accent-disabled: #9db3a6;
+}
+
+// --- Text fields / selects -----------------------------------------------------
+
+.q-field--outlined .q-field__control {
+  border-radius: mid.$mid-field-radius;
+  background: mid.$mid-field-bg;
+  transition: background 0.2s ease;
+}
+
+.q-field--outlined .q-field__control:before {
+  border-color: mid.$mid-field-border;
+  transition: border-color 0.2s ease;
+}
+
+.q-field--outlined:hover .q-field__control:before {
+  border-color: mid.$mid-field-border-hover;
+}
+
+.q-field--outlined.q-field--focused .q-field__control {
+  background: mid.$mid-field-bg-focus;
+}
+
+.q-field--outlined.q-field--focused .q-field__control:after {
+  border-color: mid.$mid-primary;
+}
+
+.q-field__label {
+  color: mid.$mid-text-muted;
+  font-weight: 600;
+}
+
+// Focused label + the caret/append icons follow the brand green.
+.q-field--focused .q-field__label,
+.q-field--highlighted .q-field__label {
+  color: mid.$mid-primary;
+}
+
+.q-field--focused .q-field__marginal,
+.q-field--highlighted .q-field__marginal {
+  color: mid.$mid-primary;
+}
+
+// Dropdown menu: selected + keyboard-highlighted option.
+.q-menu .q-item.q-manual-focusable--focused,
+.q-menu .q-item--active,
+.q-menu .q-item.q-item--active {
+  color: mid.$mid-primary;
+  background: mid.$mid-primary-soft;
+}
+
+.q-menu .q-item__section--side .q-checkbox__inner--truthy,
+.q-menu .q-item__section--side .q-radio__inner--truthy {
+  color: mid.$mid-primary;
+}
+
+// --- Date picker (q-date) -------------------------------------------------------
+
+.q-date__header {
+  background: linear-gradient(135deg, mid.$mid-primary, mid.$mid-primary-deep);
+  color: #ffffff;
+}
+
+.q-date__view {
+  background: #ffffff;
+}
+
+// Selected day + the "today" outline.
+.q-date__calendar-item .q-btn .q-btn__content {
+  font-weight: 600;
+}
+
+.q-date__calendar-item--in .q-btn--unelevated,
+.q-date__calendar-item--in .bg-primary {
+  background: mid.$mid-primary !important;
+  color: #ffffff !important;
+}
+
+.q-date__today {
+  box-shadow: 0 0 1px 1px mid.$mid-primary;
+}
+
+.q-date__calendar-item--in .q-btn:not(.bg-primary):hover,
+.q-date__years-item .q-btn:hover,
+.q-date__months-item .q-btn:hover {
+  background: mid.$mid-primary-soft;
+  color: mid.$mid-primary-dark;
+}
+
+.q-date__navigation .q-btn,
+.q-date__view .q-date__navigation .q-btn__content {
+  color: mid.$mid-primary-dark;
+}
+
+// --- Time picker (q-time) -------------------------------------------------------
+
+.q-time__header {
+  background: linear-gradient(135deg, mid.$mid-primary, mid.$mid-primary-deep);
+  color: #ffffff;
+}
+
+.q-time__clock-position--active {
+  background: mid.$mid-primary;
+  color: #ffffff;
+}
+
+.q-time__clock-pointer {
+  color: mid.$mid-primary;
+  background: mid.$mid-primary;
+}
+
+.q-time__clock-pointer:before,
+.q-time__clock-pointer:after {
+  background: currentColor;
+}
+
+.q-time__clock-center {
+  border-color: mid.$mid-primary;
+}
+
+// --- Native browser widgets ------------------------------------------------------
+// <q-input type="date" | "time" | "month" | "week"> renders the browser's own
+// picker; accent-color is the only hook for its highlight colour, and the little
+// calendar/clock button gets tinted to match the rest of the form.
+
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
+input[type='month'],
+input[type='week'],
+input[type='number'],
+input[type='range'],
+progress {
+  accent-color: mid.$mid-primary;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator,
+input[type='month']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  // Material's stock icon is near-black; recolour it to the brand green.
+  filter: invert(31%) sepia(84%) saturate(521%) hue-rotate(112deg) brightness(94%) contrast(94%);
+}
+
+// --- Selection controls -----------------------------------------------------------
+
+.q-checkbox__inner--truthy,
+.q-checkbox__inner--indet,
+.q-radio__inner--truthy,
+.q-toggle__inner--truthy .q-toggle__thumb:after {
+  color: mid.$mid-primary;
+}
+
+.q-toggle__inner--truthy .q-toggle__track {
+  background: mid.$mid-primary;
+  opacity: 0.4;
+}
+
+// --- Misc accents -----------------------------------------------------------------
+
+.q-linear-progress__model,
+.q-tab__indicator,
+.q-stepper__tab--active .q-stepper__dot,
+.q-stepper__tab--done .q-stepper__dot {
+  color: mid.$mid-primary;
+  background: mid.$mid-primary;
+}
+
+.q-tab--active {
+  color: mid.$mid-primary;
+}
+
+// Pagination / table sorting arrows.
+.q-table__sort-icon,
+.q-table .q-table__bottom .q-btn:not(.disabled) {
+  color: mid.$mid-primary-dark;
+}
+
+a:not(.q-btn):not(.q-item) {
+  color: mid.$mid-primary;
+}
+
+// Text/background utility classes Quasar generates from $primary already resolve
+// to the MID green, so `text-primary` / `bg-primary` used around the app need no
+// per-page override.
+
+// --- Accent override: purple ------------------------------------------------------
+//
+// Put `mid-accent-purple` on any wrapper and every field/picker inside it swaps
+// the brand green for the funeral purple. Used by the death-notification flow,
+// which is intentionally a different colour from the rest of the app.
+//
+// Pickers render in a portal at <body>, outside the wrapper - so MidDateField /
+// MidTimeField also stamp this class straight onto the q-date / q-time via their
+// `accent` prop. Both selectors are listed on every rule below for that reason.
+
+@mixin mid-purple-fields {
+  .q-field--outlined.q-field--focused .q-field__control:after {
+    border-color: mid.$mid-purple;
+  }
+
+  .q-field--outlined:hover .q-field__control:before {
+    border-color: mid.$mid-purple-bright;
+  }
+
+  .q-field--focused .q-field__label,
+  .q-field--highlighted .q-field__label,
+  .q-field--focused .q-field__marginal,
+  .q-field--highlighted .q-field__marginal {
+    color: mid.$mid-purple;
+  }
+
+  .q-checkbox__inner--truthy,
+  .q-checkbox__inner--indet,
+  .q-radio__inner--truthy {
+    color: mid.$mid-purple;
+  }
+}
+
+@mixin mid-purple-picker {
+  &.q-date .q-date__header,
+  &.q-time .q-time__header,
+  .q-date__header,
+  .q-time__header {
+    background: linear-gradient(135deg, mid.$mid-purple-deep, mid.$mid-purple-bright);
+  }
+
+  .q-date__calendar-item--in .q-btn--unelevated,
+  .q-date__calendar-item--in .bg-primary,
+  .q-time__clock-position--active {
+    background: mid.$mid-purple !important;
+    color: #ffffff !important;
+  }
+
+  .q-date__today {
+    box-shadow: 0 0 1px 1px mid.$mid-purple;
+  }
+
+  .q-date__calendar-item--in .q-btn:not(.bg-primary):hover,
+  .q-date__years-item .q-btn:hover,
+  .q-date__months-item .q-btn:hover {
+    background: mid.$mid-purple-soft;
+    color: mid.$mid-purple-deep;
+  }
+
+  .q-date__navigation .q-btn,
+  .q-time__clock-center {
+    color: mid.$mid-purple-deep;
+    border-color: mid.$mid-purple;
+  }
+
+  .q-time__clock-pointer {
+    color: mid.$mid-purple;
+    background: mid.$mid-purple;
+  }
+}
+
+.mid-accent-purple {
+  --mid-accent: #{mid.$mid-purple};
+  --mid-accent-deep: #{mid.$mid-purple-deep};
+  --mid-accent-soft: #{mid.$mid-purple-soft};
+  --mid-accent-disabled: #b0a6c4;
+
+  @include mid-purple-fields;
+  @include mid-purple-picker;
+
+  input[type='date'],
+  input[type='time'],
+  input[type='datetime-local'],
+  input[type='number'] {
+    accent-color: mid.$mid-purple;
+  }
+
+}

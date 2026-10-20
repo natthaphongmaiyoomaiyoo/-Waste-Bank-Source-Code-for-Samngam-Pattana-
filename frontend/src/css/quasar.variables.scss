@@ -1,0 +1,26 @@
+// Quasar SCSS (& Sass) Variables
+// --------------------------------------------------
+// The palette itself lives in components/MID/mid.variables.scss - this file only
+// wires it into Quasar's own variables. Quasar derives every built-in accent
+// from these ($primary especially: field focus, select highlight, q-date /
+// q-time, checkbox, radio, toggle, spinner, tabs), so pointing $primary at the
+// MID green is what keeps the whole app off the stock blue.
+//
+// Edit colours in MID, never here.
+
+@use '../components/MID/mid.variables' as mid;
+
+// System-wide font: Niramit (loaded in index.html)
+$typography-font-family: 'Niramit', -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+$primary: mid.$mid-primary;
+$secondary: mid.$mid-secondary;
+$accent: mid.$mid-primary-deep;
+
+$dark: #1d1d1d;
+$dark-page: #121212;
+
+$positive: mid.$mid-positive;
+$negative: mid.$mid-danger;
+$info: mid.$mid-info;
+$warning: mid.$mid-warning;

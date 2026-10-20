@@ -1,0 +1,124 @@
+// Admin pages wear the same look as the committee pages: the municipality theme
+// plus the pieces each committee page repeats in its own <style> (search row,
+// dialog form grid, pill dialog buttons, hint banner). Kept here so the admin
+// pages share one copy - pull it in with `@use './theme' as *;`.
+@use '../municipality/theme';
+
+// Make the admin page wash transparent so the subtle animated ambient glow
+// from MainLayout shows through softly around cards and panels.
+.muni-page {
+  background: transparent;
+}
+
+// The theme's `flex: 1` gives the title block a zero basis, so on a phone it shrank
+// to one word per line beside the button. A 200px floor keeps it beside the icon
+// and makes the button wrap onto its own line instead.
+.hero-copy {
+  flex: 1 1 200px;
+}
+
+// Search / filter row under a panel title (wraps MidFilterBar)
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 28px;
+}
+
+// Badge for "หมู่ N" in tables and cards
+.moo-badge {
+  background: #e6f5ed;
+  color: #0b7a47;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+// --- Dialogs ---------------------------------------------------------------------
+
+// Pill buttons, the shape the committee dialogs use.
+.dialog-footer .q-btn {
+  padding-inline: 20px;
+  border-radius: 999px;
+}
+
+.danger-icon {
+  background: #fdecec;
+  color: #c62828;
+}
+
+.warning-icon {
+  background: #fff4d6;
+  color: #9a5a00;
+}
+
+.hint-banner {
+  background: #f2fbf5;
+  color: #14603c;
+  border: 1px solid #d8eee1;
+  font-size: 13.5px;
+}
+
+.dialog-message {
+  color: #43544b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.dialog-note {
+  margin-top: 8px;
+  color: #7f8f85;
+  font-size: 12.5px;
+}
+
+// Form fields with floating labels on a 12-column grid
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px 14px;
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+.span-3 {
+  grid-column: span 3;
+}
+.span-4 {
+  grid-column: span 4;
+}
+.span-5 {
+  grid-column: span 5;
+}
+.span-6 {
+  grid-column: span 6;
+}
+.span-8 {
+  grid-column: span 8;
+}
+.span-12 {
+  grid-column: span 12;
+}
+
+// Phone - same 599px line as the tables' card mode ($q.screen.lt.sm).
+@media (max-width: 599px) {
+  .hero-add-btn {
+    width: 100%;
+  }
+
+  // Lines the search row up with the cards' 16px edge.
+  .filter-row {
+    padding: 12px 16px;
+  }
+
+  // One field per row.
+  .span-2,
+  .span-3,
+  .span-4,
+  .span-5,
+  .span-6,
+  .span-8 {
+    grid-column: span 12;
+  }
+}

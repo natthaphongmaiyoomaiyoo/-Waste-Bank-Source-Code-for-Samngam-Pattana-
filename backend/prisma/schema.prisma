@@ -1,0 +1,804 @@
+// Waste Bank Recycling System - Prisma schema
+// Translated directly from the project ER diagram. Table/column names are mapped
+// (@@map / @map) to match the ERD's snake_case names exactly, while Prisma/TS code
+// uses idiomatic camelCase field names.
+//
+// This is the Member-role subset of the full 20-table ERD. See backend/README.md
+// "Assumptions" section for which tables were intentionally excluded this pass
+// (funeral_claim, funeral_payment, member_status_history) and why, plus a couple
+// of small, documented simplifications (money fields as Float instead of Decimal;
+// audit "who did this" columns like recorded_by/issued_by/checked_by/created_by
+// are stored as plain integer columns, not full Prisma relations, since the
+// committee/admin side that would own those accounts isn't implemented yet).
+//
+// News is a deliberate non-ERD addition (homepage news/announcements) - see
+// backend/README.md "Assumptions" for why it exists outside the ERD.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Master data
+// ---------------------------------------------------------------------------
+
+model Role {
+  id          Int    @id @default(autoincrement()) @map("role_id")
+  roleName    String @unique @map("role_name") // admin, committee, municipality, buyer, member
+  description String?
+
+  userAccounts UserAccount[]
+
+  @@map("role")
+}
+
+// Buyers may propose new waste types (name + rough price); only an admin's
+// approval flips one to 'active', which is the only status members/committees
+// ever see (wasteTypeService.listActive). 'pending' rows are visible to the
+// proposing buyer and to admins alone.
+model WasteType {
+  id           Int      @id @default(autoincrement()) @map("waste_type_id")
+  wasteName    String   @map("waste_name")
+  unit         String // kg, piece
+  defaultPrice Float    @map("default_price")
+  status       String   @default("active") // active, pending, rejected, inactive
+  // Buyer account that proposed this type (null = added directly by an admin).
+  // Plain integer audit columns, same convention as recorded_by/created_by.
+  proposedBy   Int?      @map("proposed_by")
+  proposedAt   DateTime? @map("proposed_at")
+  reviewedBy   Int?      @map("reviewed_by")
+  reviewedAt   DateTime? @map("reviewed_at")
+  rejectReason String?   @map("reject_reason")
+
+  saleDetails      WasteSaleDetail[]
+  saleRequestItems SaleRequestItem[]
+  priceHistories   WastePriceHistory[]
+
+  @@index([status])
+  @@index([proposedBy])
+  @@map("waste_type")
+}
+
+model WastePriceHistory {
+  id            Int       @id @default(autoincrement()) @map("price_history_id")
+  wasteTypeId   Int       @map("waste_type_id")
+  wasteType     WasteType @relation(fields: [wasteTypeId], references: [id])
+  buyerId       Int?      @map("buyer_id")
+  buyer         Buyer?    @relation(fields: [buyerId], references: [id])
+  price         Float
+  effectiveFrom DateTime  @map("effective_from")
+  effectiveTo   DateTime? @map("effective_to")
+  createdBy     Int?      @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([wasteTypeId])
+  @@index([buyerId])
+  @@index([effectiveFrom])
+  @@map("waste_price_history")
+}
+
+model Buyer {
+  id          Int    @id @default(autoincrement()) @map("buyer_id")
+  buyerName   String @map("buyer_name")
+  contactName String? @map("contact_name")
+  phone       String?
+  address     String?
+  status      String @default("active") // active, inactive
+
+  collectionRounds CollectionRound[]
+  wasteSales       WasteSale[]
+  priceHistories   WastePriceHistory[]
+  userAccounts     UserAccount[]
+  routePlans       PickupRoutePlan[]
+
+  @@map("buyer")
+}
+
+model FundAccount {
+  id          Int      @id @default(autoincrement()) @map("fund_account_id")
+  accountName String   @unique @map("account_name")
+  balance     Float    @default(0)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  transactions FundTransaction[]
+
+  @@map("fund_account")
+}
+
+// One municipality -> many villages. Admin maintains this list (master data);
+// every village committee account is bound to exactly one row here, and the
+// members a committee may touch are the ones whose household points at this
+// same row via household.village_area_id (see middleware/villageScope.ts).
+// `moo` is display/address data only - never the permission key, so renaming a
+// moo or having two villages share one cannot move members between committees.
+model VillageArea {
+  id          Int      @id @default(autoincrement()) @map("village_area_id")
+  villageName String   @map("village_name")
+  moo         String?
+  subdistrict String?
+  district    String?
+  province    String?
+  postcode    String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  committeeAccounts UserAccount[]
+  households        Household[]
+  collectionRounds  CollectionRound[]
+  routePlans        PickupRoutePlan[]
+
+  @@index([moo])
+  @@map("village_area")
+}
+
+model SystemSetting {
+  id           Int      @id @default(autoincrement()) @map("setting_id")
+  settingKey   String   @unique @map("setting_key")
+  settingValue String   @map("setting_value")
+  valueType    String   @default("string") @map("value_type")
+  description  String?
+  updatedBy    Int?     @map("updated_by")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("system_setting")
+}
+
+// ---------------------------------------------------------------------------
+// Member
+// ---------------------------------------------------------------------------
+
+model Household {
+  id          Int      @id @default(autoincrement()) @map("household_id")
+  houseNo     String?  @map("house_no")
+  moo         String?
+  subdistrict String?
+  district    String?
+  province    String?
+  postcode    String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  // Which village this household belongs to. This is the key committee
+  // permissions are resolved against (villageScopeService) - null means the
+  // household is not attached to any village yet, so no committee owns it and
+  // only an admin can see it.
+  villageAreaId Int?         @map("village_area_id")
+  villageArea   VillageArea? @relation(fields: [villageAreaId], references: [id])
+
+  members Member[]
+
+  @@index([villageAreaId])
+  @@map("household")
+}
+
+model Member {
+  id            Int       @id @default(autoincrement()) @map("member_id")
+  memberCode    String    @unique @map("member_code")
+  householdId   Int       @map("household_id")
+  household     Household @relation(fields: [householdId], references: [id])
+  citizenId     String    @unique @map("citizen_id")
+  prefix        String?
+  firstName     String    @map("first_name")
+  lastName      String    @map("last_name")
+  birthDate     DateTime  @map("birth_date")
+  gender        String?
+  phone         String
+  occupation    String?
+  applyDate     DateTime  @default(now()) @map("apply_date")
+  approvedDate  DateTime? @map("approved_date")
+  // pending, active, resigned, deceased
+  status        String    @default("pending")
+  remark        String?
+
+  guarantors        MemberGuarantor[]
+  userAccount       UserAccount?
+  saleRequests      SaleRequest[]
+  wasteSales        WasteSale[]
+  fundTransactions  FundTransaction[]
+  fundBalance       MemberFundBalance?
+  eligibilityChecks EligibilityCheck[]
+  verifications     MemberVerification[]
+  // Death events where this member is the deceased (funeral fund payout side).
+  funeralCases         FuneralCase[]         @relation("FuneralCaseDeceased")
+  // This member's own funeral-fund contribution record, as a paying member,
+  // for each death event.
+  funeralContributions FuneralContribution[]
+  statusHistories   MemberStatusHistory[]
+  documents         MemberDocument[]
+
+  @@index([householdId])
+  @@index([status])
+  @@map("member")
+}
+
+model MemberStatusHistory {
+  id          Int      @id @default(autoincrement()) @map("status_history_id")
+  memberId    Int      @map("member_id")
+  member      Member   @relation(fields: [memberId], references: [id])
+  fromStatus  String?  @map("from_status")
+  toStatus    String   @map("to_status")
+  reason      String?
+  changedBy   Int?     @map("changed_by")
+  changedAt   DateTime @default(now()) @map("changed_at")
+
+  @@index([memberId])
+  @@index([changedAt])
+  @@map("member_status_history")
+}
+
+model MemberDocument {
+  id           Int      @id @default(autoincrement()) @map("document_id")
+  memberId     Int      @map("member_id")
+  member       Member   @relation(fields: [memberId], references: [id])
+  documentType String   @map("document_type")
+  fileName     String   @map("file_name")
+  originalName String   @map("original_name")
+  storagePath  String   @map("storage_path")
+  mimeType     String   @map("mime_type")
+  fileSize     Int      @map("file_size")
+  note         String?
+  uploadedBy   Int?     @map("uploaded_by")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+
+  @@index([memberId])
+  @@index([documentType])
+  @@map("member_document")
+}
+
+// Committee's membership-application screening (age / address / guarantor checks
+// recorded before approval). Distinct from EligibilityCheck below, which is the
+// fund/funeral-benefit eligibility computed from selling history. Not in the
+// original 20-table ERD - added for the Committee "Add Member" feature.
+model MemberVerification {
+  id                Int      @id @default(autoincrement()) @map("verification_id")
+  memberId          Int      @map("member_id")
+  member            Member   @relation(fields: [memberId], references: [id])
+  checkDate         DateTime @default(now()) @map("check_date")
+  ageYears          Int      @map("age_years") // applicant age at verification time (server-computed)
+  ageEligible       Boolean  @map("age_eligible") // committee certified the applicant's age (ageVerified)
+  addressVerified   Boolean  @map("address_verified") // committee confirmed the applicant's address
+  guarantorVerified Boolean  @map("guarantor_verified") // committee confirmed the referrer/guarantor info
+  result            String // passed, failed
+  note              String?
+  verifiedBy        Int?     @map("verified_by") // user_account id (plain int column, same pattern as recorded_by)
+
+  @@index([memberId])
+  @@map("member_verification")
+}
+
+model MemberGuarantor {
+  id              Int    @id @default(autoincrement()) @map("guarantor_id")
+  memberId        Int    @map("member_id")
+  member          Member @relation(fields: [memberId], references: [id])
+  guarantorName   String @map("guarantor_name")
+  guarantorPhone  String? @map("guarantor_phone")
+  relationship    String?
+  note            String?
+
+  @@index([memberId])
+  @@map("member_guarantor")
+}
+
+model UserAccount {
+  id           Int       @id @default(autoincrement()) @map("user_id")
+  memberId     Int?      @unique @map("member_id") // null for non-member accounts (committee/admin/etc - not created by this pass)
+  member       Member?   @relation(fields: [memberId], references: [id])
+  username     String    @unique // = citizen_id for member accounts
+  passwordHash String    @map("password_hash")
+  fullName     String    @map("full_name")
+  phone        String?
+  // Relative path under backend/uploads (e.g. "avatars/xxx.jpg"), not an absolute
+  // URL - authService builds the absolute URL at read time, same pattern as News.imageUrl.
+  avatarUrl    String?   @map("avatar_url")
+  roleId       Int       @map("role_id")
+  role         Role      @relation(fields: [roleId], references: [id])
+  // Village this account is responsible for. Required in practice for
+  // 'committee' accounts (enforced by the admin API + villageScope middleware),
+  // null for every other role.
+  villageAreaId Int?         @map("village_area_id")
+  villageArea   VillageArea? @relation(fields: [villageAreaId], references: [id])
+  // The shop a 'buyer' account works for. Required in practice for buyer
+  // accounts (enforced by middleware/buyerScope.ts, mirroring villageAreaId for
+  // committees); null for every other role.
+  buyerId       Int?         @map("buyer_id")
+  buyer         Buyer?       @relation(fields: [buyerId], references: [id])
+  status       String    @default("active") // active, inactive
+  lastLogin    DateTime? @map("last_login")
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+  failedLoginCount   Int      @default(0) @map("failed_login_count")
+  lockedUntil        DateTime? @map("locked_until")
+  passwordChangedAt  DateTime? @map("password_changed_at")
+  resetTokenHash     String?   @map("reset_token_hash")
+  resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
+
+  notifications Notification[]
+  loginAudits   LoginAudit[]
+  systemLogs    SystemLog[]
+
+  @@index([villageAreaId])
+  @@index([buyerId])
+  @@map("user_account")
+}
+
+model LoginAudit {
+  id            Int          @id @default(autoincrement()) @map("login_audit_id")
+  userId        Int?         @map("user_id")
+  user          UserAccount? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  identifier    String
+  success       Boolean
+  failureReason String?      @map("failure_reason")
+  ipAddress     String?      @map("ip_address")
+  userAgent     String?      @map("user_agent")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("login_audit")
+}
+
+// ---------------------------------------------------------------------------
+// Collection rounds & sell requests
+// ---------------------------------------------------------------------------
+
+model CollectionRound {
+  id           Int      @id @default(autoincrement()) @map("round_id")
+  roundDate    DateTime @map("round_date")
+  startTime    String   @map("start_time") // "HH:mm"
+  endTime      String   @map("end_time") // "HH:mm"
+  buyerId      Int      @map("buyer_id")
+  buyer        Buyer    @relation(fields: [buyerId], references: [id])
+  locationNote String?  @map("location_note")
+  // Village this round is held for. A committee's rounds always carry their own
+  // village and are only offered to that village's members; null means the
+  // round is open to the whole municipality (admin-created).
+  villageAreaId Int?         @map("village_area_id")
+  villageArea   VillageArea? @relation(fields: [villageAreaId], references: [id])
+  // planned, completed, cancelled (per ERD - no separate "full" status modeled)
+  status       String   @default("planned")
+  createdBy    Int?     @map("created_by")
+
+  saleRequests SaleRequest[]
+  wasteSales   WasteSale[]
+  routePlans   PickupRoutePlan[]
+
+  @@index([villageAreaId])
+  @@index([roundDate])
+  @@map("collection_round")
+}
+
+model SaleRequest {
+  id                 Int              @id @default(autoincrement()) @map("request_id")
+  memberId           Int              @map("member_id")
+  member             Member           @relation(fields: [memberId], references: [id])
+  roundId            Int              @map("round_id")
+  round              CollectionRound  @relation(fields: [roundId], references: [id])
+  requestDate        DateTime         @default(now()) @map("request_date")
+  pickupAddress      String?          @map("pickup_address")
+  // Member's shared GPS position (browser Geolocation, requested with consent
+  // on the sell-request page) - lets the committee plan the pickup route.
+  pickupLat          Float?           @map("pickup_lat")
+  pickupLng          Float?           @map("pickup_lng")
+  estimatedQuantity  Float            @map("estimated_quantity")
+  // requested, confirmed, cancelled, completed
+  status             String           @default("requested")
+  note               String?
+
+  items      SaleRequestItem[]
+  sale       WasteSale?
+  routeStops PickupRouteStop[]
+
+  @@index([memberId])
+  @@index([roundId])
+  @@index([status])
+  @@map("sale_request")
+}
+
+// ---------------------------------------------------------------------------
+// Pickup route plans (committee plans the run -> buyer drives it)
+// ---------------------------------------------------------------------------
+
+// One run per round per village, built by the system: accepting a sell request
+// that has a pinned location adds it as a stop and re-orders the run
+// (routePlanService.addRequestToRoundPlan); cancelling it takes the stop off.
+// The buyer sees it straight away and works the stops in order.
+// Not in the ERD - see backend/README.md "Pickup route plans".
+model PickupRoutePlan {
+  id            Int          @id @default(autoincrement()) @map("route_plan_id")
+  // The round this run collects for. Null only on plans cancelled under the old
+  // hand-built flow, which no longer count towards the one-per-round rule.
+  roundId       Int?             @map("round_id")
+  round         CollectionRound? @relation(fields: [roundId], references: [id])
+  // Village the plan belongs to = the village of its members. Buyer sees the
+  // village name so a multi-village round stays readable.
+  villageAreaId Int?         @map("village_area_id")
+  villageArea   VillageArea? @relation(fields: [villageAreaId], references: [id])
+  // The round's buyer - the shop that will drive it.
+  buyerId       Int          @map("buyer_id")
+  buyer         Buyer        @relation(fields: [buyerId], references: [id])
+  planDate      DateTime     @map("plan_date")
+  // Where the run starts (committee's pinned start point), for redrawing the
+  // same line on the buyer's map.
+  startLat      Float?       @map("start_lat")
+  startLng      Float?       @map("start_lng")
+  totalDistanceKm Float?     @map("total_distance_km")
+  note          String?
+  // sent (visible to the buyer, nothing marked yet), in_progress (buyer marked
+  // a stop), completed (no stop left pending), cancelled (old flow only)
+  status        String       @default("sent")
+  confirmedBy   Int?         @map("confirmed_by")
+  confirmedAt   DateTime     @default(now()) @map("confirmed_at")
+
+  stops PickupRouteStop[]
+
+  @@unique([roundId, villageAreaId])
+  @@index([buyerId])
+  @@index([villageAreaId])
+  @@index([status])
+  @@map("pickup_route_plan")
+}
+
+model PickupRouteStop {
+  id            Int             @id @default(autoincrement()) @map("route_stop_id")
+  planId        Int             @map("route_plan_id")
+  plan          PickupRoutePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  requestId     Int             @map("request_id")
+  request       SaleRequest     @relation(fields: [requestId], references: [id])
+  // 1-based position in the planned order.
+  sequence      Int
+  // Copied from the request at confirm time so the route the buyer drives is
+  // the one the committee approved, even if the member later edits their pin.
+  lat           Float
+  lng           Float
+  legDistanceKm Float?          @map("leg_distance_km")
+  // pending, next (the one the buyer is driving to), collected, skipped
+  status        String          @default("pending")
+  markedAt      DateTime?       @map("marked_at")
+  markedBy      Int?            @map("marked_by")
+  note          String?
+
+  // One stop per request per plan - re-confirming updates instead of duplicating.
+  @@unique([planId, requestId])
+  @@index([status])
+  @@index([requestId])
+  @@map("pickup_route_stop")
+}
+
+// Per-waste-type breakdown of a sell request (estimated quantities the member
+// declared). The completed purchase's actual quantities live in
+// waste_sale_detail; the committee UI compares the two by waste_type_id.
+// estimated_quantity on sale_request stays as the denormalized sum (ERD field).
+model SaleRequestItem {
+  id                Int         @id @default(autoincrement()) @map("request_item_id")
+  requestId         Int         @map("request_id")
+  request           SaleRequest @relation(fields: [requestId], references: [id])
+  wasteTypeId       Int         @map("waste_type_id")
+  wasteType         WasteType   @relation(fields: [wasteTypeId], references: [id])
+  estimatedQuantity Float       @map("estimated_quantity")
+
+  @@index([requestId])
+  @@map("sale_request_item")
+}
+
+// ---------------------------------------------------------------------------
+// Completed sales, receipts
+// ---------------------------------------------------------------------------
+
+model WasteSale {
+  id                Int              @id @default(autoincrement()) @map("sale_id")
+  saleNo            String           @unique @map("sale_no")
+  memberId          Int              @map("member_id")
+  member            Member           @relation(fields: [memberId], references: [id])
+  roundId           Int              @map("round_id")
+  round             CollectionRound  @relation(fields: [roundId], references: [id])
+  buyerId           Int              @map("buyer_id")
+  buyer             Buyer            @relation(fields: [buyerId], references: [id])
+  // Set when the sale fulfils a member's sell request (committee pickup flow) -
+  // one sale per request at most.
+  requestId         Int?             @unique @map("request_id")
+  request           SaleRequest?     @relation(fields: [requestId], references: [id])
+  saleDate          DateTime         @default(now()) @map("sale_date")
+  totalAmount       Float            @map("total_amount")
+  fundDeductAmount  Float            @default(0) @map("fund_deduct_amount")
+  netAmount         Float            @map("net_amount")
+  recordedBy        Int?             @map("recorded_by")
+  // completed, cancelled
+  status            String           @default("completed")
+
+  details   WasteSaleDetail[]
+  receipt   Receipt?
+  documents SaleDocument[]
+
+  @@index([memberId, saleDate])
+  @@index([roundId])
+  @@index([saleDate])
+  @@map("waste_sale")
+}
+
+// Proof the committee attaches to a purchase it recorded: photos of the weigh-in,
+// the goods, or a paper slip. Images are downscaled in the browser before upload
+// (frontend/src/utils/imageCompress.ts) so the uploads folder stays small.
+model SaleDocument {
+  id           Int       @id @default(autoincrement()) @map("sale_document_id")
+  saleId       Int       @map("sale_id")
+  sale         WasteSale @relation(fields: [saleId], references: [id])
+  fileName     String    @map("file_name")
+  originalName String    @map("original_name")
+  storagePath  String    @map("storage_path")
+  mimeType     String    @map("mime_type")
+  fileSize     Int       @map("file_size")
+  note         String?
+  uploadedBy   Int?      @map("uploaded_by")
+  uploadedAt   DateTime  @default(now()) @map("uploaded_at")
+
+  @@index([saleId])
+  @@map("sale_document")
+}
+
+model WasteSaleDetail {
+  id          Int       @id @default(autoincrement()) @map("sale_detail_id")
+  saleId      Int       @map("sale_id")
+  sale        WasteSale @relation(fields: [saleId], references: [id])
+  wasteTypeId Int       @map("waste_type_id")
+  wasteType   WasteType @relation(fields: [wasteTypeId], references: [id])
+  quantity    Float
+  unitPrice   Float     @map("unit_price")
+  subtotal    Float
+
+  @@index([saleId])
+  @@index([wasteTypeId])
+  @@map("waste_sale_detail")
+}
+
+model Receipt {
+  id          Int       @id @default(autoincrement()) @map("receipt_id")
+  receiptNo   String    @unique @map("receipt_no")
+  saleId      Int       @unique @map("sale_id")
+  sale        WasteSale @relation(fields: [saleId], references: [id])
+  receiptDate DateTime  @default(now()) @map("receipt_date")
+  totalAmount Float     @map("total_amount")
+  fundAmount  Float     @map("fund_amount")
+  paidAmount  Float     @map("paid_amount")
+  issuedBy    Int?      @map("issued_by")
+
+  @@map("receipt")
+}
+
+// ---------------------------------------------------------------------------
+// Fund / eligibility
+// ---------------------------------------------------------------------------
+
+model FundTransaction {
+  id              Int         @id @default(autoincrement()) @map("fund_transaction_id")
+  fundAccountId   Int         @map("fund_account_id")
+  fundAccount     FundAccount @relation(fields: [fundAccountId], references: [id])
+  memberId        Int?        @map("member_id")
+  member          Member?     @relation(fields: [memberId], references: [id])
+  saleId          Int?        @map("sale_id")
+  // Set on rows generated by the funeral-fund deduction flow (both the
+  // mandatory-fund-side deduction and the personal-fund-side transfer), so a
+  // ledger row can be traced back to the death event that caused it.
+  funeralCaseId   Int?        @map("funeral_case_id")
+  funeralCase     FuneralCase? @relation(fields: [funeralCaseId], references: [id])
+  transactionDate DateTime    @default(now()) @map("transaction_date")
+  // contribution, benefit_payment, donation, adjustment, deposit, withdrawal,
+  // funeral_personal_transfer
+  transactionType String      @map("transaction_type")
+  amountIn        Float       @default(0) @map("amount_in")
+  amountOut       Float       @default(0) @map("amount_out")
+  balanceAfter    Float       @map("balance_after")
+  recordedBy      Int?        @map("recorded_by")
+  note            String?
+
+  @@index([memberId, transactionDate])
+  @@index([saleId])
+  @@index([funeralCaseId])
+  @@index([transactionDate])
+  @@map("fund_transaction")
+}
+
+model MemberFundBalance {
+  id                   Int       @id @default(autoincrement()) @map("member_fund_balance_id")
+  memberId             Int       @unique @map("member_id")
+  member               Member    @relation(fields: [memberId], references: [id])
+  // The member's one savings balance (ยอดเงินสะสม): the automatic top-up to
+  // FUND_MINIMUM_BAHT plus whatever sale money they chose to keep. It can't be
+  // withdrawn - it only goes down when funeral contributions are collected.
+  totalContribution    Float     @default(0) @map("total_contribution")
+  lastContributionDate DateTime? @map("last_contribution_date")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@map("member_fund_balance")
+}
+
+// A death event that triggers the mandatory 50-baht-per-active-member funeral
+// fund collection (see committeeService.markMemberDeceased /
+// funeralFundService.collectFuneralContribution). One row per member marked
+// deceased; FuneralContribution below has one row per paying member for this
+// case, which is what makes the collection idempotent (safe to re-run).
+model FuneralCase {
+  id               Int      @id @default(autoincrement()) @map("funeral_case_id")
+  deceasedMemberId Int      @map("deceased_member_id")
+  deceasedMember   Member   @relation("FuneralCaseDeceased", fields: [deceasedMemberId], references: [id])
+  requiredAmount   Float    @default(50) @map("required_amount")
+  // When the case was recorded (committee action time) - kept separate from
+  // deathDate below (the actual date of death, as entered by the committee
+  // from the death certificate).
+  eventDate        DateTime @default(now()) @map("event_date")
+  deathDate        DateTime @map("death_date")
+  causeOfDeath     String   @map("cause_of_death")
+  // The committee member who reported the death.
+  recordedBy       Int?     @map("recorded_by")
+  // pending = reported by the committee, nothing has happened yet (the member
+  // is still active); approved = the municipality approved it, the member is
+  // deceased and the contributions below were charged.
+  status           String    @default("pending")
+  // The committee's note on the report; added to the member's remark on approval.
+  reportNote       String?   @map("report_note")
+  approvedBy       Int?      @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  contributions FuneralContribution[]
+  transactions  FundTransaction[]
+
+  @@index([deceasedMemberId])
+  @@index([status])
+  @@map("funeral_case")
+}
+
+// One paying member's funeral-fund contribution for one death event, taken
+// from their savings balance. Created at most once per (funeralCaseId,
+// memberId) - the unique index is what prevents a member from being charged
+// twice for the same case.
+model FuneralContribution {
+  id            Int         @id @default(autoincrement()) @map("funeral_contribution_id")
+  funeralCaseId Int         @map("funeral_case_id")
+  funeralCase   FuneralCase @relation(fields: [funeralCaseId], references: [id])
+  memberId      Int         @map("member_id")
+  member        Member      @relation(fields: [memberId], references: [id])
+  requiredAmount Float      @default(50) @map("required_amount")
+  // Amount taken from the member's savings (member_fund_balance.total_contribution).
+  fundAmount    Float       @default(0) @map("fund_amount")
+  // Always 0: left over from the separate withdrawable savings balance, whose
+  // amounts were folded into fund_amount when savings became one balance.
+  personalFundAmount Float  @default(0) @map("personal_fund_amount")
+  totalPaid     Float       @default(0) @map("total_paid")
+  shortfall     Float       @default(0) @map("shortfall")
+  // completed, partially_paid, shortfall_remaining
+  status        String      @map("status")
+  // The member's savings balance left after this contribution.
+  personalFundBalanceAfter Float @map("personal_fund_balance_after")
+  recordedBy    Int?        @map("recorded_by")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@unique([funeralCaseId, memberId])
+  @@index([memberId])
+  @@map("funeral_contribution")
+}
+
+model EligibilityCheck {
+  id                    Int      @id @default(autoincrement()) @map("eligibility_id")
+  memberId              Int      @map("member_id")
+  member                Member   @relation(fields: [memberId], references: [id])
+  checkDate             DateTime @default(now()) @map("check_date")
+  activeMonthCount      Int      @map("active_month_count")
+  continuousMonthCount  Int      @map("continuous_month_count")
+  isEligible            Boolean  @map("is_eligible")
+  reason                String?
+  checkedBy             Int?     @map("checked_by")
+
+  @@index([memberId])
+  @@map("eligibility_check")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id               Int         @id @default(autoincrement()) @map("notification_id")
+  userId           Int         @map("user_id")
+  user             UserAccount @relation(fields: [userId], references: [id])
+  title            String
+  message          String
+  notificationType String      @map("notification_type") // schedule, fund, funeral, eligibility, claim
+  isRead           Boolean     @default(false) @map("is_read")
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("notification")
+}
+
+// ---------------------------------------------------------------------------
+// News (not in the 20-table ERD - see schema header + backend/README.md)
+// ---------------------------------------------------------------------------
+
+model News {
+  id        Int      @id @default(autoincrement()) @map("news_id")
+  title     String
+  details   String
+  // Supabase Storage object path (or an external URL for demo seed data).
+  // newsService resolves object paths to a public URL at read time.
+  imageUrl  String   @map("image_url")
+  // Admin-settable display date, independent of createdAt (row insert audit time).
+  postedAt  DateTime @map("posted_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("news")
+}
+
+// Hero slideshow images on the public news page, managed at /manage-banners.
+// Shown oldest first; the newest one carries the welcome headline overlay.
+model Banner {
+  id        Int      @id @default(autoincrement()) @map("banner_id")
+  // Storage object path in the news bucket, or a frontend static path
+  // ("/icons/...") for the built-in banners the migration inserted.
+  imageUrl  String   @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  // Position in the homepage slideshow, lowest first - admins drag to reorder.
+  sortOrder Int      @default(0) @map("sort_order")
+  // Optional text over the banner: its first and second line.
+  textIntro String?  @map("text_intro")
+  textMain  String?  @map("text_main")
+
+  @@map("banner")
+}
+
+model MemberType {
+  id          Int      @id @default(autoincrement()) @map("member_type_id")
+  name        String   @unique @map("type_name")
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("member_type")
+}
+
+// ---------------------------------------------------------------------------
+// System Logs
+// ---------------------------------------------------------------------------
+
+model SystemLog {
+  id          Int          @id @default(autoincrement()) @map("log_id")
+  userId      Int?         @map("user_id")
+  user        UserAccount? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actionType  String       @map("action_type")
+  module      String
+  action      String
+  detail      String?
+  targetId    String?      @map("target_id")
+  ipAddress   String?      @map("ip_address")
+  userAgent   String?      @map("user_agent")
+  status      String       @default("success")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("system_log")
+}
+
+// ---------------------------------------------------------------------------
+// Waste Sorting Videos
+// ---------------------------------------------------------------------------
+
+model WasteSortingVideo {
+  id          Int      @id @default(autoincrement()) @map("video_id")
+  title       String
+  description String?
+  videoUrl    String   @map("video_url")
+  coverUrl    String?  @map("cover_url")
+  category    String?
+  isActive    Boolean  @default(true) @map("is_active")
+  postedAt    DateTime @default(now()) @map("posted_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("waste_sorting_video")
+}

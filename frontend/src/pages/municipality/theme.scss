@@ -1,0 +1,432 @@
+// Shared look for the Municipality pages - calm green visual language:
+// flat soft-green page wash, deep-green hero band, white cards separated by
+// hairline borders (not heavy shadows), and a restrained type scale
+// (700 for headings/values, 500-600 for supporting text) so Thai text
+// stays easy on the eyes.
+// Each page pulls this in from its scoped <style> block via `@use './theme' as *;`.
+
+.muni-page {
+  min-height: 100%;
+  padding: 28px;
+  background: #f5f8f5;
+}
+
+.muni-shell {
+  width: min(1380px, 100%);
+  margin: 0 auto;
+}
+
+// --- Hero band ---------------------------------------------------------------
+
+.muni-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 26px 32px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0b4f36 0%, #10744a 100%);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(11, 79, 54, 0.14);
+}
+
+.hero-leaf {
+  position: absolute;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 100% 0 100% 0;
+  transform: rotate(-25deg);
+}
+
+.hero-leaf-one {
+  right: 170px;
+  bottom: 14px;
+  width: 180px;
+  height: 74px;
+}
+
+.hero-leaf-two {
+  right: 20px;
+  bottom: -30px;
+  width: 240px;
+  height: 118px;
+  opacity: 0.6;
+}
+
+.hero-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+}
+
+.hero-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  font-size: 30px;
+}
+
+.hero-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.hero-copy h1 {
+  margin: 0;
+  font-size: clamp(22px, 2.6vw, 30px);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.hero-copy p {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+// --- Summary stat cards --------------------------------------------------------
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.summary-card,
+.panel-card {
+  background: #ffffff;
+  border: 1px solid #e4ebe5;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(23, 46, 34, 0.04);
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 112px;
+  padding: 20px 22px;
+}
+
+.summary-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  border-radius: 14px;
+  font-size: 26px;
+}
+
+.icon-green {
+  color: #1e8a44;
+  background: #eaf6ec;
+}
+
+.icon-blue {
+  color: #2379b8;
+  background: #eaf3fb;
+}
+
+.icon-amber {
+  color: #a3691a;
+  background: #faf1e0;
+}
+
+.icon-red {
+  color: #c05252;
+  background: #faeded;
+}
+
+.summary-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.summary-label {
+  color: #5f6f66;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.summary-value {
+  margin-top: 6px;
+  color: #16352a;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.summary-value span {
+  margin-left: 4px;
+  color: #8a958e;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.summary-hint {
+  margin-top: 6px;
+  color: #8a958e;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+// --- Panels ---------------------------------------------------------------------
+
+.panel-card {
+  padding: 24px 26px;
+}
+
+.panel-card--flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+.panel-card--flush .panel-head {
+  padding: 22px 26px 0;
+}
+
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.panel-title {
+  color: #16352a;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.panel-caption {
+  margin-top: 4px;
+  color: #83908a;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.panel-link {
+  display: inline-flex;
+  align-items: center;
+  color: #0b7a47;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.panel-link:hover {
+  text-decoration: underline;
+}
+
+// --- Tables / lists / states ------------------------------------------------------
+
+.muni-table :deep(thead th) {
+  color: #43514a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.muni-table :deep(tbody td) {
+  color: #2c3b33;
+  font-weight: 400;
+}
+
+.list-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 12px;
+  font-size: 20px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 0;
+  color: #98a19d;
+  font-weight: 500;
+}
+
+.error-banner {
+  margin-top: 24px;
+  border: 1px solid #f3c7c7;
+  border-radius: 16px;
+}
+
+.loading-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 64px 0;
+}
+
+// --- Responsive -------------------------------------------------------------------
+
+@media (max-width: 1180px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .muni-page {
+    padding: 16px;
+  }
+
+  .muni-hero {
+    padding: 22px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-card {
+    padding: 22px;
+  }
+
+  .panel-card--flush {
+    padding: 0;
+  }
+}
+
+// --- Shared hero button --------------------------------------------------------
+
+.hero-add-btn {
+  margin-left: auto;
+  color: #075c38;
+  background: #ffffff;
+  border-radius: 12px;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 0 18px;
+  box-shadow: 0 4px 12px rgba(22, 83, 57, 0.15);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.hero-action-group {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.hero-action-group .hero-add-btn {
+  margin-left: 0;
+}
+
+
+.hero-add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(22, 83, 57, 0.22);
+}
+
+@media (max-width: 600px) {
+  .hero-add-btn {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 12px;
+  }
+}
+
+// --- Shared Dialog styles -------------------------------------------------------
+
+.admin-dialog {
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(11, 79, 54, 0.16);
+}
+
+.dialog-sm {
+  width: min(480px, calc(100vw - 32px));
+  max-width: min(480px, calc(100vw - 32px));
+}
+
+.dialog-md {
+  width: min(620px, calc(100vw - 32px));
+  max-width: min(620px, calc(100vw - 32px));
+}
+
+.dialog-lg {
+  width: min(760px, calc(100vw - 32px));
+  max-width: min(760px, calc(100vw - 32px));
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #eaf1eb;
+}
+
+.dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #0e2d1e;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.dialog-title-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 10px;
+  background: #e6f5ed;
+  color: #0b7a47;
+  font-size: 20px;
+}
+
+.dialog-body {
+  padding: 20px 22px;
+  max-height: min(70vh, 620px);
+  overflow-y: auto;
+}
+
+.dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid #eaf1eb;
+}
+
+.dialog-section-label {
+  margin-bottom: 10px;
+  color: #087f49;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+// --- Action cell buttons -------------------------------------------------------
+
+.action-btns {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+

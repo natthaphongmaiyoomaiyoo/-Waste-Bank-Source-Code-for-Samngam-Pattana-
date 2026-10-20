@@ -1,0 +1,74 @@
+// MID is the app's design system: brand colours for every Quasar control
+// (fields, selects, date/time pickers, checkboxes...) live there, loaded once
+// here so no page has to restyle them.
+@use '../components/MID/mid-theme';
+
+// Global responsive safety net for shared Quasar elements. `clip` on #q-app
+// (not `hidden` on html/body) stops sideways overflow without turning body into
+// a nested scroll container - that made iOS Safari and in-app browsers stick
+// and snap back to the old position while scrolling.
+html, body, #q-app { max-width: 100%; }
+#q-app { overflow-x: clip; }
+
+// Niramit ships up to weight 700 - stop browsers from synthesizing
+// fake bold for the 800-950 weights used around the app (they render as 700).
+body { font-synthesis-weight: none; }
+
+// A touch of extra tracking for Thai readability (elderly users especially) -
+// kept small since Thai vowel/tone marks are combining characters and too
+// much letter-spacing can visually separate them from their base consonant.
+body { letter-spacing: 0.02em; }
+
+// Tables system-wide: bold column headers, light body text.
+// !important because several pages restyle headers via scoped :deep() rules
+// with heavier specificity - the header weight must win everywhere.
+.q-table thead tr th { font-weight: 700 !important; }
+.q-table tbody td { font-weight: 400; }
+*, *::before, *::after { box-sizing: border-box; }
+img, video, canvas, svg { max-width: 100%; }
+.q-page, .q-page-container, .q-layout, .q-card, .q-card__section,
+.row > *, .column > * { min-width: 0; }
+.q-table__container { max-width: 100%; }
+.q-table__middle {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.q-dialog__inner > .q-card { max-width: calc(100vw - 32px); }
+@media (max-width: 599px) {
+  .q-page { padding-left: 12px; padding-right: 12px; }
+  .q-dialog__inner { padding: 12px; }
+  .q-dialog__inner > .q-card {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100dvh - 24px);
+  }
+  .q-dialog__inner > .q-card > .q-card__section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .q-table__top { flex-wrap: wrap; gap: 8px; }
+
+  // Table footer on phones (every q-table): the page numbers (MidTablePagination)
+  // centred on top, the small rows-per-page picker under them. Quasar renders
+  // the picker first, hence column-reverse.
+  .q-table__bottom:has(.q-table__control) {
+    flex-direction: column-reverse;
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding: 10px 8px;
+  }
+  .q-table__bottom .q-table__separator { display: none; }
+  .q-table__bottom .q-table__control { justify-content: center; }
+  .q-table__bottom-item { margin-left: 0; }
+  .q-table__bottom .q-table__control:not(:last-child) {
+    color: #6d8a7c;
+    font-size: 12.5px;
+  }
+  .hero-add-btn {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-top: 12px !important;
+  }
+}
