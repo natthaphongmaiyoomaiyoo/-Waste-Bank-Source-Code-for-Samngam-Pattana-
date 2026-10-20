@@ -10,6 +10,7 @@
 |---|---|
 | [backend/](backend/) | REST API: Node.js + TypeScript + Express + Prisma + PostgreSQL (Supabase), zod, JWT, vitest |
 | [frontend/](frontend/) | เว็บ: Quasar (Vue 3) + Pinia + ApexCharts + Leaflet + pdfmake |
+| [database/](database/) | โครงสร้างฐานข้อมูลเป็นไฟล์ SQL ([schema.sql](database/schema.sql)) สร้างจาก Prisma schema |
 
 วิธีติดตั้งและรันแต่ละส่วนอยู่ใน [backend/README.md](backend/README.md) และ [frontend/README.md](frontend/README.md)
 (ต้องสร้างไฟล์ `.env` เองจาก `.env.example` ของแต่ละโฟลเดอร์)
